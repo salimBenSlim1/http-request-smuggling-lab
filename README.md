@@ -14,6 +14,7 @@ environments, each one isolating a single idea:
 | [`01-content-length-framing`](01-content-length-framing) | A single HTTP/1.1 parser, one component | Where exactly does a parser decide a request "ends," and what happens when `Content-Length` lies about the body size? |
 | [`02-desync-lab`](02-desync-lab) | Two components (proxy + backend) parsing the same bytes | What happens when the front end and back end *disagree* about framing — and what a trust boundary built on top of that disagreement looks like |
 | [`03-otp-rate-limit-race`](03-otp-rate-limit-race) | Concurrency instead of framing | A different kind of HTTP-layer desync: a check-then-act rate limit raced with concurrent requests |
+| [`04-http2-downgrade`](04-http2-downgrade) | HTTP/2-to-HTTP/1.1 translation | A **working, verified** H2.CL-style desync: what happens when a downgrade gateway starts forwarding before it has buffered the full HTTP/2 body |
 
 Background and a walkthrough of the PortSwigger labs that motivated this are in
 [`docs/findings.md`](docs/findings.md).
@@ -67,6 +68,12 @@ python3 admin_header_bypass.py   # header-trust-bypass finding, proven over HTTP
 cd 01-content-length-framing && node server.js   # terminal 1
 cd 03-otp-rate-limit-race
 node load-test-otp.js            # terminal 2 (or: python3 load_test_otp.py)
+
+# Lab 4 — HTTP/2 downgrade smuggling (Node core http2, no deps)
+cd 04-http2-downgrade
+node backend.js        # terminal 1
+node gateway.js          # terminal 2 (vulnerable by default; SAFE_MODE=1 node gateway.js to fix it)
+node attack_client.js    # terminal 3 - then check terminal 1's log
 ```
 
 ## Scope and disclaimer
@@ -86,6 +93,7 @@ actually doing the labs.
 ├── 01-content-length-framing/   # single HTTP/1.1 parser, CL mismatch
 ├── 02-desync-lab/                # proxy + 2 backends, desync + trust-boundary bug
 ├── 03-otp-rate-limit-race/       # TOCTOU race on a rate limiter
+├── 04-http2-downgrade/           # working H2.CL desync at an HTTP/2 -> HTTP/1.1 gateway
 └── docs/
     └── findings.md               # write-up: concepts, PortSwigger context, findings
 ```

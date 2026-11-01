@@ -141,6 +141,44 @@ underlying lesson generalizes — HTTP desyncs aren't only about
 requests can race past a check-then-act control is the same shape of
 problem at a different layer.
 
+## `04-http2-downgrade`: a working H2.CL desync
+
+The labs above all keep the front end and back end agreeing on framing
+(a deliberate, documented limitation — see the "Scope note" in
+`02-desync-lab`'s README). `04-http2-downgrade` closes that gap with a
+genuinely divergent pair: an HTTP/2 (`h2c`) front end and an HTTP/1.1
+backend, connected through a gateway that has to translate between two
+different framing models, where HTTP/2's binary, frame-length-prefixed
+DATA framing carries no `Content-Length`-vs-`Transfer-Encoding`
+ambiguity on its own, but the *translation back into HTTP/1.1* can
+reintroduce it.
+
+The first version of this lab tried to reproduce H2.CL by having the
+HTTP/2 *client* assert a `content-length` header that didn't match its
+own DATA frames. Node's `http2` implementation validates that itself —
+spec-compliant per RFC 9113 §8.1.2.6 — and resets the stream before the
+mismatch ever reaches application code, which ruled that variant out
+against a real, compliant stack and is itself a useful, honest result:
+it's a concrete illustration of why that particular H2.CL shape is rare
+against modern HTTP/2 implementations.
+
+The bug that does reproduce lives in the gateway's own buffering logic:
+starting to forward a request to the backend as soon as the first DATA
+chunk arrives, and declaring that chunk's size as the full
+`Content-Length`, rather than waiting for `END_STREAM` to know the true
+total body size. Combined with a pooled, reused backend connection
+(what any real reverse proxy does for performance), that under-declared
+length leaves the remainder of the attacker's DATA sitting on the
+backend connection as the start of whatever request the gateway
+forwards next — including an unrelated client's. Verified end-to-end:
+running `attack_client.js` against the lab as shipped, the backend logs
+a request whose request line is the attacker's forged text with a
+"victim" request's real body attached underneath it, swallowing the
+victim's actual request entirely; re-running the same client against
+`SAFE_MODE=1` (buffer the complete body before forwarding) produces two
+clean, correctly separated, correctly attributed requests instead. Full
+write-up, logs and fix in `04-http2-downgrade/README.md`.
+
 ## Tooling
 
 `02-desync-lab/desync_probe.py` implements the standard timing-based
@@ -162,11 +200,13 @@ rather than a one-off `curl`.
 
 - A proper CL.TE/TE.CL pair of backends behind a single front end that
   actually disagree on `Transfer-Encoding` support, to reproduce a
-  genuine smuggling desync end-to-end in `02-desync-lab` and get a
-  positive result out of `desync_probe.py`, rather than only having
-  the framing-observation tooling in place.
-- HTTP/2 downgrade behavior: most production smuggling research has
-  moved toward H2.CL/H2.TE issues at HTTP/2-to-HTTP/1.1 gateways,
-  which is a meaningfully different attack surface from classic
-  HTTP/1.1-to-HTTP/1.1 smuggling (see `01-content-length-framing`'s
-  README for a short note on why).
+  genuine HTTP/1.1-to-HTTP/1.1 smuggling desync end-to-end in
+  `02-desync-lab` and get a positive result out of `desync_probe.py`,
+  rather than only having the framing-observation tooling in place.
+  (`04-http2-downgrade` now covers the HTTP/2-to-HTTP/1.1 case
+  end-to-end, including a verified positive and negative result.)
+- An H2.TE variant of `04-http2-downgrade` — the current lab is
+  H2.CL-shaped (an under-declared `Content-Length`); a gateway that
+  synthesizes `Transfer-Encoding: chunked` for the downstream HTTP/1.1
+  request instead, and gets the chunk boundaries wrong, would round
+  out the other half of the H2.CL/H2.TE split.
