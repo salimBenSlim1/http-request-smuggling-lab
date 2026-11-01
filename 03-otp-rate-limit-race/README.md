@@ -27,8 +27,17 @@ database setup needed — it keeps state in memory):
 
 ```bash
 cd ../01-content-length-framing && node server.js   # terminal 1, :3000
-cd ../03-otp-rate-limit-race && node load-test-otp.js # terminal 2
+
+cd ../03-otp-rate-limit-race
+node load-test-otp.js           # terminal 2, Node version
+# or
+python3 load_test_otp.py --total 5000 --concurrency 50   # Python version
 ```
+
+Both scripts hit the same endpoint the same way; the Python version
+takes `--total`/`--concurrency` flags (default `900000`/`100`, matching
+the Node version's constants) so you can run a smaller pass without
+editing the file.
 
 It reports which status codes came back for each candidate outside
 `200`, plus overall throughput. On a vulnerable (sequential

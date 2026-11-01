@@ -141,12 +141,30 @@ underlying lesson generalizes — HTTP desyncs aren't only about
 requests can race past a check-then-act control is the same shape of
 problem at a different layer.
 
+## Tooling
+
+`02-desync-lab/desync_probe.py` implements the standard timing-based
+CL.TE detection methodology as a runnable harness (Python, stdlib
+only): send an ambiguous Content-Length/Transfer-Encoding request,
+send a baseline request, compare latency. Run as-is against this
+repo's shipped backends, it correctly reports no desync, since every
+component here currently agrees on framing (see "Scope note" above).
+It's there to be pointed at a genuinely divergent backend pair, and as
+a concrete implementation of the technique rather than a description
+of it.
+
+`02-desync-lab/admin_header_bypass.py` is the HTTP-level proof for the
+trust-boundary finding above — a single `GET /admin` with
+`X-Internal-Admin: true`, scripted so the result is reproducible
+rather than a one-off `curl`.
+
 ## What I'd want to add next
 
 - A proper CL.TE/TE.CL pair of backends behind a single front end that
   actually disagree on `Transfer-Encoding` support, to reproduce a
-  genuine smuggling desync end-to-end in `02-desync-lab` rather than
-  only the framing-observation tooling.
+  genuine smuggling desync end-to-end in `02-desync-lab` and get a
+  positive result out of `desync_probe.py`, rather than only having
+  the framing-observation tooling in place.
 - HTTP/2 downgrade behavior: most production smuggling research has
   moved toward H2.CL/H2.TE issues at HTTP/2-to-HTTP/1.1 gateways,
   which is a meaningfully different attack surface from classic

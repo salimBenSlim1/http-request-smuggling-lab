@@ -18,6 +18,11 @@ environments, each one isolating a single idea:
 Background and a walkthrough of the PortSwigger labs that motivated this are in
 [`docs/findings.md`](docs/findings.md).
 
+Every script exists in both Node.js and Python (stdlib only — no
+`pip install` needed), built directly on raw sockets / `http.client`
+rather than a framework, so the HTTP mechanics are the thing on
+display, not a particular language's HTTP client library.
+
 ## Why framing, not just "the labs"
 
 HTTP/1.1 request smuggling exists because HTTP/1.1 has two independent,
@@ -47,18 +52,21 @@ Node.js 18+ required:
 # Lab 1 — single-parser framing
 cd 01-content-length-framing
 node server.js        # terminal 1
-node client.js         # terminal 2
+node client.js          # terminal 2 (or: python3 client.py)
 
 # Lab 2 — two-component desync (needs Postgres, see its README)
 cd 02-desync-lab
-node server-a/server.js    # terminal 1
-node server-b/server.js    # terminal 2
+node server-a/server.js          # terminal 1
+node server-b/server.js          # terminal 2
 node proxy/tcp-introspector.js   # terminal 3
-node raw-client/client.js        # terminal 4
+node raw-client/client.js        # terminal 4 (or: python3 raw-client/client.py)
+python3 desync_probe.py          # CL.TE timing probe
+python3 admin_header_bypass.py   # header-trust-bypass finding, proven over HTTP
 
 # Lab 3 — rate-limit race (targets lab 1's server, no DB needed)
 cd 01-content-length-framing && node server.js   # terminal 1
-cd 03-otp-rate-limit-race && node load-test-otp.js  # terminal 2
+cd 03-otp-rate-limit-race
+node load-test-otp.js            # terminal 2 (or: python3 load_test_otp.py)
 ```
 
 ## Scope and disclaimer

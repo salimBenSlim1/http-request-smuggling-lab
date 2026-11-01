@@ -4,9 +4,10 @@ The smallest possible environment for watching an HTTP/1.1 parser decide
 where one request ends and the next begins.
 
 - `server.js` — a tiny Express backend on `:3000`.
-- `client.js` — opens one raw TCP socket and writes two concatenated
-  HTTP/1.1 requests in a single `write()` call, where the first
-  request's `Content-Length` doesn't match the body bytes:
+- `client.js` / `client.py` — same demo, two implementations (Node.js
+  and Python, stdlib only in both) — opens one raw TCP socket and
+  writes two concatenated HTTP/1.1 requests in a single write, where
+  the first request's `Content-Length` doesn't match the body bytes:
 
   ```
   POST /one HTTP/1.1
@@ -28,12 +29,17 @@ where one request ends and the next begins.
 
 ```bash
 node server.js     # terminal 1
-node client.js      # terminal 2
+
+node client.js      # terminal 2, Node version
+# or
+python3 client.py   # terminal 2, Python version (no pip install needed)
 ```
 
 Watch the server's console output and the response(s) the client
 receives — compare what actually happened to what you'd predict from
-the request text above.
+the request text above. Both clients send byte-for-byte the same
+request, so the server-side behavior is identical regardless of which
+one you run.
 
 ## Why this is *not* a smuggling vulnerability by itself
 
